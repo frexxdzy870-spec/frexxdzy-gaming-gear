@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Frexxdzy Store - Gaming Gear</title>
+    
+    <!-- 1. TAILWIND CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. FONTS -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <!-- 3. REACT & BABEL (Agar bisa jalan tanpa Node.js) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- 4. LIBRARIES LAIN (Icons & Charts) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
+
+    <!-- CONFIG TAILWIND -->
+    <script>
+      // Sembunyikan warning Tailwind
+      const originalWarn = console.warn;
+      console.warn = (...args) => {
+        if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return;
+        originalWarn.apply(console, args);
+      };
+
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: { sans: ['Outfit', 'sans-serif'] },
+            colors: {
+              brand: {
+                red: '#A31D1D',
+                dark: '#0f0f0f',
+                gold: '#FFD700',
+                cream: '#F8F2DE',
+                beige: '#ECDCBF'
+              }
+            },
+            animation: {
+              'fade-in': 'fadeIn 0.5s ease-out',
+              'fade-in-up': 'fadeInUp 0.8s ease-out',
+              'bounce-slow': 'bounce 3s infinite',
+            },
+            keyframes: {
+              fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+              fadeInUp: { '0%': { opacity: '0', transform: 'translateY(20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } }
+            }
+          }
+        }
+      }
+    </script>
+
+    <style>
+      body { background-color: #0f0f0f; color: #e5e5e5; overflow-x: hidden; }
+      ::-webkit-scrollbar { width: 8px; }
+      ::-webkit-scrollbar-track { background: #1a1a1a; }
+      ::-webkit-scrollbar-thumb { background: #A31D1D; border-radius: 4px; }
+      ::-webkit-scrollbar-thumb:hover { background: #c92a2a; }
+      .glass-card { background: rgba(24, 24, 27, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+            /* Success / confetti animations */
+            @keyframes confetti-fall {
+                0% { opacity: 1; transform: translateY(-10vh) rotate(0deg); }
+                100% { opacity: 0; transform: translateY(80vh) rotate(360deg); }
+            }
+            @keyframes pop-scale {
+                0% { transform: scale(0.6); opacity: 0; }
+                60% { transform: scale(1.05); opacity: 1; }
+                100% { transform: scale(1); opacity: 1; }
+            }
+            .confetti-piece { position: absolute; width: 10px; height: 14px; border-radius: 2px; will-change: transform, opacity; }
+            .success-card { animation: pop-scale 400ms ease-out; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- MAIN SCRIPT (REACT LOGIC) -->
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+        // Defensive Recharts binding: avoid runtime error if Recharts didn't load.
+        const RechartsAvailable = typeof Recharts !== 'undefined' && Recharts;
+        const AreaChart = RechartsAvailable ? Recharts.AreaChart : ({ children }) => React.createElement('div', null, children);
+        const Area = RechartsAvailable ? Recharts.Area : () => null;
+        const XAxis = RechartsAvailable ? Recharts.XAxis : () => null;
+        const YAxis = RechartsAvailable ? Recharts.YAxis : () => null;
+        const CartesianGrid = RechartsAvailable ? Recharts.CartesianGrid : () => null;
+        const Tooltip = RechartsAvailable ? Recharts.Tooltip : () => null;
+        const ResponsiveContainer = RechartsAvailable ? Recharts.ResponsiveContainer : ({ children }) => React.createElement('div', null, children);
+
+        // --- Error overlay for easier debugging (captures errors and unhandled rejections)
+        (function(){
+            const id = '__app_error_overlay__';
+            if (document.getElementById(id)) return;
+            const overlay = document.createElement('div');
+            overlay.id = id;
+            Object.assign(overlay.style, {
+                position: 'fixed',
+                right: '12px',
+                bottom: '12px',
+                zIndex: 99999,
+                maxWidth: '420px',
+                background: 'rgba(22,22,22,0.95)',
+                color: '#fff',
+                fontFamily: 'sans-serif',
+                fontSize: '12px',
+                padding: '10px',
+                borderRadius: '8px',
+                boxShadow: '0 6px 24px rgba(0,0,0,0.6)',
+                display: 'none'
+            });
+            overlay.innerHTML = `<div style="font-weight:700;margin-bottom:6px">Runtime Errors</div><pre id="__app_error_pre__" style="white-space:pre-wrap;max-height:240px;overflow:auto;margin:0;padding:0"></pre><div style="display:flex;gap:8px;margin-top:8px"><button id="__app_error_close__" style="flex:1;padding:6px;border-radius:6px;background:#444;border:none;color:#fff;cursor:pointer">Close</button><button id="__app_error_clear__" style="padding:6px;border-radius:6px;background:#a31d1d;border:none;color:#fff;cursor:pointer">Clear</button></div>`;
+            document.body.appendChild(overlay);
+            const pre = overlay.querySelector('#__app_error_pre__');
+            const btnClose = overlay.querySelector('#__app_error_close__');
+            const btnClear = overlay.querySelector('#__app_error_clear__');
+            btnClose.addEventListener('click', ()=>overlay.style.display='none');
+            btnClear.addEventListener('click', ()=>{ pre.textContent=''; overlay.style.display='none'; });
+
+            const show = (msg) => { pre.textContent += (pre.textContent ? '\n\n' : '') + msg; overlay.style.display = 'block'; console.error(msg); };
+
+            window.__showAppError = show;
+            window.addEventListener('error', (ev) => {
+                try { const m = `${ev.message} — ${ev.filename}:${ev.lineno}:${ev.colno}\n${ev.error && ev.error.stack ? ev.error.stack : ''}`; show(m); } catch(e) { console.error(e); }
+            });
+            window.addEventListener('unhandledrejection', (ev) => {
+                try { const reason = ev.reason && ev.reason.stack ? ev.reason.stack : String(ev.reason); show('UnhandledRejection: ' + reason); } catch(e) { console.error(e); }
+            });
+        })();
+
+        // --- ASSETS ---
+        const ASSETS = {
+            BRANDS: [
+                { name: 'ASUS ROG', logo: 'https://i.ibb.co.com/jP6xvG0P/ASUS-ROG-2007-logo-svg.png' },
+                { name: 'Fantech', logo: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTa6fpP47nDueE0CDOVGO82ITM1eLW_s56Fzw&s' },
+                { name: 'Logitech ', logo: 'https://static.wikia.nocookie.net/logopedia/images/a/a2/Logitech_Stacked_2015.svg/revision/latest/scale-to-width-down/250?cb=20231029233614' },
+                { name: 'Hyper X', logo: 'https://i.ibb.co.com/39BtxFZK/images-4.png' },
+                { name: 'Rexus', logo: 'https://i.ibb.co.com/r28PBjR0/images-2.png' },
+                { name: 'MSI', logo: 'https://i.ibb.co.com/jk6fCfZS/images-3.png' },
+                { name: 'Acer Predator', logo: 'https://i.ibb.co.com/ynpH30Fm/36637b254066adaa7e86d0ae318cf6e7.png' },
+            ],
+            HERO: [
+                "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2070&auto=format&fit=crop",
+                "https://images.unsplash.com/photo-1595225476474-87563907a212?q=80&w=2071&auto=format&fit=crop",
+                "https://images.unsplash.com/photo-1527814050087-3793815479db?q=80&w=1928&auto=format&fit=crop",
+                "https://images.unsplash.com/photo-1612287230217-969b65929d45?q=80&w=2070&auto=format&fit=crop",
+            ],
+            PRODUCTS: {
+                CONTROLLER: ["https://rexus.id/cdn/shop/files/Gamepad_GX_2_2_d8fbb90b-6ecd-49a4-bba8-d4c1770dabae.png?v=1705292110&width=1200", "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcTVwCya55jGMhHzM2uUuaEpAdm2WoWo3dqmIjdqAMFVdO8ust7vMZnecqvI1SXFf7Ihk2vkZ85DLzoSMQKuZJftK2RW9P_8kpK7JXJYej20DRv41oDqQc5Y", "https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcSnJ9cRe634L_g0p1pJ6ufQTHrEW_U1ZG1GBM7LrCnkwO3PiJVP8CAADs0dRHv-5O2PxERrXd26CKxdu3vEQkSKHuv1aq4wQ5eoqtYOM0makwYeCA3wi5tx-ko","https://images.tokopedia.net/img/cache/700/VqbcmM/2025/3/12/e794da77-a729-4a62-b586-0a0824a9359c.jpg", "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcRJaV8dORKTdzdP_pv-gPUtwiVZOn1q91oAdWjeOLyf2IsqXJji1TKfjutrdKe2FaLJGLC1HAKuSbnULpTZGy-5ITA3ZQ4-FlGwuv6CXyTLyrW2qR1az5Um"],
+                KEYBOARD: ["https://www.static-src.com/wcsstore/Indraprastha/images/catalog/full/catalog-image/92/MTA-180811053/fantech_keyboard_gaming_fantech_super_maxfit_air83_mk915_grey_-_red_switch_full07_rmuw2ctb.jpg", "https://starcompjogja.com/storage/product/1bdc050fc6026a7667e236b3c6894cfb_logitech-g-pro-tkl-rgb-clicky_2.webp", "https://chemicygaming.com/image/cache/gaming%20gear/keyboard/rexus/MX3.1/chemicy_gaming_rexus_legionare_mx31_rainbow_fullsize_mechanical_gaming_keyboard%20(3)-800x800.png","https://row.hyperx.com/cdn/shop/products/hyperx_alloy_origins_core_pbt_hx_red_ko_639n7aa_23ab1_main_1.jpg?v=1663889002&width=832", "https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcQSddi0Ygcj85V-XHH80bxGOlnYGRU1cdPsZIIxauvTAMIUTksrkhp7GkHs7wg3myZKfgxW07jVCgS5soNLyiCAJA1esuQiuOqlqPZrH3CDhJCNiAcT160rBw"],
+                MOUSE: ["https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcTrrw2bG2fMPlpttIGeBEflCgbA4-caIydaO5gXzeIVaOGyIru508bWC2P8sfSctOk1NdM7pkPRGhl5O-TVcppg3hh7fT-hgtwS5crmz_6L3geBvP_74kve2Q", "https://dorangadget.com/wp-content/uploads/2025/07/Mouse-Gaming-Terbaik-Razer-Basilisk-V3-400x400.jpg","https://images.tokopedia.net/img/cache/700/aphluv/1997/1/1/ccf2a12929b946c39e06642d36668469~.jpeg","https://i.ibb.co.com/60TCYM6W/f8f1ee8fcf7ec4ad59ce35f27ee098e6.jpg","https://jete.id/wp-content/uploads/2023/05/Mouse-MSX1-3.jpg"],
+                MONITOR: ["https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcQkGh_IFVSxvEMHg_81x53sWCtreIK1FmYVv8w0ntRGNjmP2Wsv_8lV0_4MX54hutRsgg5yOSlWsoQi5gUppEnjN9Zl9ELCT7aXzexykBPwDHQoIIwwDS0ssu0", "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcSykoT8VE2c3n5vtB5AVlI-KYi5x4oe8Ohw0lHok_Nv6l--0WTPdDf_ZJlT7jBWTr-Llyw8anYMVj-JDS8dJ5CiztN8_Uba3FwKSsjZ5-iliAfwPeJ5PJKE","https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcSBvWSGRkxGV200yGmn87LjIKFmwRTgy0vpt4H31x-JKI4HdFrWma0qNiBx_k4McXY7YdJaC6cYyubWLzjywMG6EbO5i8taeQdkHeeqoTTV8rtjEcbOo3DhR6D_","https://encrypted-tbn1.gstatic.com/shopping?q=tbn:ANd9GcRSYlYgEIhj1fqOyoi98D3Nxvol0z7Z0dyp-_M-CFL8BAhYaaIxh-tqdNw5wApNkv6xp24e443zKOvSluLDWso82-3rUO0e08_jk-asnMAmyVgM7lfWeyBDyPmc","https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ2pOMT5nhqeVDOTcDxk8JIvKO5rH6kBtZsWg&s"],
+                CHAIR: ["https://rexus.id/cdn/shop/files/RGC_101_V_6_9cbbbf9c-6f49-4b15-bf47-c1642b3a90ba.png?v=1756788297&width=1200", "https://images.tokopedia.net/img/cache/700/hDjmkQ/2023/5/10/bc897b5c-0861-4c7c-a0e0-c97d53b2c4fb.jpg","https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcSR7iDyKAYoq9L81KLiHJsPMOfRpE-Us2MDh6gVGJPwNqZX0tIzsA7TSzzHMCaGrL50vD6fWrdid5VsAViTgofiVnjx1JKvcG_B8g0-urWXtw7x98bjHXC9","https://encrypted-tbn1.gstatic.com/shopping?q=tbn:ANd9GcTB4Mlp9xDN_J1EcqdEtswx9X1PyhXPZR2rlbJm2QuKSmAQbm2Lrzo0ZlcuCqmZxGAxJM1p4kYyFOy5_GRYNtqJwinICmP21qFJUQ83FrY8LZJKYk9esXc8","https://encrypted-tbn1.gstatic.com/shopping?q=tbn:ANd9GcTB4Mlp9xDN_J1EcqdEtswx9X1PyhXPZR2rlbJm2QuKSmAQbm2Lrzo0ZlcuCqmZxGAxJM1p4kYyFOy5_GRYNtqJwinICmP21qFJUQ83FrY8LZJKYk9esXc8","https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcSCq2q3Mj4xqZY7p3dIEJrgZEBmF2PFe8uIPvma7-wFI1J93qkyvXY76E1JoTIEt5D88MthG62hq_YK4PTnvKSlI8Etxvdkdoi5Fl143Q4hnecFEUTQKXIt8A"],
+                DESK: ["https://rexus.id/cdn/shop/files/GALA_V2_2.jpg?v=1760590296&width=1200", "https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcRpxJE3kY0omA5w9sn_r6DGU2BSpg0Df7LKAiIT5Kl-PZJv_qV77jh229JmuGqXTfjzpQUKPdkaBjLlXUInWDjDrItmtW5ugFomCc1NIpJzlk0_ZnSXzo60","https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcRgyXN7BrIr3K1khsOMGZWjyUGQNgyfjpUhA92XT2Ma-GdppDGpRIW07kX7dQ6a_iZo_mBE8yxwXBy2FJ6Xn47_dajkFNUpQGQJKM_3fqO2ifnr5CZtmGXe","https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcRLO2lEwXscMNChxt0pzqRZSx-9kE1mS7V0QdodR6YZ8-jp4LJsq6WNC94HtwJeSzaY4EqV3BIAdztDDHm88Q3cRLRdMiWPrgNZbsNog_bvxmi1w6cawCZSOQ","https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcQPfncvZjorBgypNcNQqUHufoPs9a_ticMCUa5bTTNx39teqIhDGlaGLIWCsZ5tAbGaOgtwyEysNemADp0Wirc2of4D4P7ZEICGz86m5Do-F0ene2StAJ1Qtw"],
+                PC: ["https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcRpG-iqOquV_VVonlOWIQZdvZ2-LQNC7PLRRWgwgj736mgrc9purQLeD5glPWansdfnw3P72pwhB8EssUddWQxwtixqNKezAEvwJ5dSKtp1PDDP4gMw_upQ0w", "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcSJUO1r4jpihLpdgsRiLe5oRW550_8IAQ00zpeeP8WZxQ1N-TZeKFdlV9ksht-VlM7S597DcI2s4nyCgOxHLTlUSDubOan6Nfqbx30B5f4S6RXBDnVPeFm9-g","https://encrypted-tbn1.gstatic.com/shopping?q=tbn:ANd9GcTz6yC43VOecAVYx0qlWjVGSX5Q7NkmayX0iD8IHMaoXsC-hn4_Qk6IX3n2H48t6MuC8n0937FH3u-dume8MiIUHMAUk28riP4cjBRVe85TT4Jfjboyfb8N","https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcRrqKAocEDz3VpJEVxZ2Sd7H9MimHGyt4VZWr2tF8Xnr6M2BqJesxs5UuAJqX0FT9c6FkzF9AGK1ybsFuZHi_wnw-90OHQB4Q0jJk3LTigMJgFo6YV9f5BB","https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcTXqDmPy5clCAw3rt9YQZ1r2UHrL71YDfM1Y6oDCSzp5isdrnM2P7vMPlY_v-mX0lNJg3SXlF7uxYnKNy_OD4deJ_bm8YFy14WXVz8xEN3TZ210T0BxTWqi","https://images.tokopedia.net/img/cache/700/VqbcmM/2022/10/21/ea0c8195-e2ff-47b0-ae2f-94642807025a.png"],
+                HEADSET: ["https://images.tokopedia.net/img/cache/700/VqbcmM/2022/10/1/87176657-5c73-4a73-9391-04ec12a34ebd.png", "https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcTjkKh9rR3nnCYPzfKmoh1GeV9yaogCY3dLFaLGqnbktZ1JFakz6BFhyTH0BW3Q3RquzntiiuFpfKD-jv11zZffNUNNkPgdm9ZuLXWldow3Lu1hBrgINlvFljY","https://encrypted-tbn1.gstatic.com/shopping?q=tbn:ANd9GcS3-6PvS90M4XmlthtAWepjfk9XSQ5Qp-LeM1ZFrLMKGswGJjdhATiztAONGX-38tpSDSBVe33DLqKUvbB8NSw7xePq3YDiYaFppMBIpN82l-3OdWM-b1IBoA","https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcR0kq7TVRPKSRaI9EsH6pPKns50YkE_nOcJT-_7OTbApUZm1mpG-7W2LOHDsA5B2Jfihxx8AM9Qg31d0-kp2AMjqIZm9Z37_n-d6gcevki49ai6OUZZJP715A","https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcQ_S-tvea15Bp_1uK0GuS6XGO4H5PBL4LwYokeqIsHgJghMwkpKS_0nceIUDdMMrmjF_cHgu6yTXtwP1v8CnKbtme-XiU3C2oZB6ld-4EWWx6TRhh6y4yop6Q"],
+            },
+            TEAM: {
+                CEO: "https://i.ibb.co.com/14wTkgW/premium-photo-1661598162494-a001ca960f0e-2.jpg",
+                PRODUCT_HEAD: "https://i.ibb.co.com/HfSVRTX5/premium-photo-1661598162494-a001ca960f0e-3.jpg",
+                CS_LEAD: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRo-0EIjTNvQSDomunddzFbi1n4NpwkQhWA0Q&s",
+                MARKETING: "https://plus.unsplash.com/premium_photo-1661598162494-a001ca960f0e?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+            },
+            AMBASSADORS: {
+                PERSON_1: "https://i.ibb.co.com/fdwYNGXn/screenshot-2024-09-24-at-20-22-19-66f2bd12c925c4042049db32-2.jpg",
+                PERSON_2: "https://i.ibb.co.com/xSX1rNcR/screenshot-2024-09-24-at-20-22-19-66f2bd12c925c4042049db32-3.jpg",
+                PERSON_3: "https://i.ibb.co.com/gb3hMQ46/screenshot-2024-09-24-at-20-22-19-66f2bd12c925c4042049db32.jpg",
+                PERSON_4: "https://i.ibb.co.com/5gFzPqbJ/screenshot-2024-09-24-at-20-22-19-66f2bd12c925c4042049db32-1.jpg",
+            },
+            REVIEWS: [
+                "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200",
+                "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=200",
+                "https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?q=80&w=200",
+                "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=200",
+            ],
+            DEFAULTS: {
+                USER_AVATAR: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200",
+            }
+        };
+
+        // --- ICON HELPER (Menggantikan Lucide React) ---
+        // Robust Icon helper: supports different lucide shapes and avoids
+        // dangerouslySetInnerHTML to reduce console/runtime errors.
+        const Icon = ({ name, size = 24, className = '', fill = "none" }) => {
+            try {
+                const icons = (typeof lucide !== 'undefined' && (lucide.icons || lucide)) || null;
+                if (!icons) return null;
+
+                // try several key styles (original case and lowercase)
+                const iconData = icons[name] || icons[String(name).toLowerCase()];
+                if (!iconData) {
+                    // fallback placeholder SVG so UI remains usable
+                    return (
+                        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`lucide-missing ${className}`}>
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" fill="none" />
+                        </svg>
+                    );
+                }
+
+                // iconData is commonly an array of children like [ [tag, attrs], ... ]
+                const children = Array.isArray(iconData)
+                    ? iconData.map((child, i) => {
+                        const [tag, attrs] = child;
+                        return React.createElement(tag, { key: i, ...attrs });
+                      })
+                    : // if shape differs, attempt to iterate object entries
+                      Object.entries(iconData).map(([tag, attrs], i) => React.createElement(tag, { key: i, ...attrs }));
+
+                return React.createElement(
+                    'svg',
+                    {
+                        xmlns: 'http://www.w3.org/2000/svg',
+                        width: size,
+                        height: size,
+                        viewBox: '0 0 24 24',
+                        fill,
+                        stroke: 'currentColor',
+                        strokeWidth: 2,
+                        strokeLinecap: 'round',
+                        strokeLinejoin: 'round',
+                        className: `lucide lucide-${String(name).toLowerCase()} ${className}`
+                    },
+                    children
+                );
+            } catch (e) {
+                // swallow unexpected errors to avoid breaking the app
+                return null;
+            }
+        };
+
+        // --- COMPONENTS ---
+
+        function BrandsSection() {
+            return (
+                <div className="py-8 bg-gray-50">
+                    <div className="container mx-auto px-4">
+                        <h2 className="text-3xl font-bold text-center mb-8 text-[#A31D1D]">Partner Brands</h2>
+                        <div className="flex justify-center items-center gap-8 flex-wrap">
+                            {ASSETS.BRANDS.map((brand) => (
+                                <div key={brand.name} className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition">
+                                    <img src={brand.logo} alt={brand.name} className="h-12 object-contain" />
+                                    <p className="text-center text-sm text-gray-600 mt-2">{brand.name}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const Header = ({ onSearch, onLoginClick, onLogoutClick, user, onNavigate, cartCount, onCartClick }) => {
+            const [isMenuOpen, setIsMenuOpen] = useState(false);
+            const [searchValue, setSearchValue] = useState('');
+
+            const handleSearchChange = (e) => {
+                setSearchValue(e.target.value);
+                onSearch(e.target.value);
+            };
+
+            const handleNav = (view) => {
+                onNavigate(view);
+                setIsMenuOpen(false);
+            };
+
+            return (
+                <header className="sticky top-0 z-50 bg-brand-red/95 backdrop-blur-md shadow-lg border-b border-white/10">
+                    <div className="container mx-auto px-4 py-3">
+                        <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-2 cursor-pointer group" onClick={() => handleNav('home')}>
+                                <Icon name="Gamepad2" className="w-8 h-8 text-brand-gold animate-pulse" />
+                                <h1 className="text-2xl font-extrabold text-white tracking-tighter group-hover:text-brand-cream transition-colors">
+                                    Frexxdzy<span className="text-brand-gold">.</span>
+                                </h1>
+                            </div>
+
+                            <div className="hidden md:flex flex-1 mx-8 max-w-xl">
+                                <div className="relative w-full">
+                                    <input type="text" placeholder="Cari gear gaming..." value={searchValue} onChange={handleSearchChange} className="w-full bg-white/10 border border-white/20 rounded-full py-2 pl-4 pr-10 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-gold transition-all" />
+                                    <div className="absolute right-3 top-2.5"><Icon name="Search" className="w-5 h-5 text-gray-300" /></div>
+                                </div>
+                            </div>
+
+                            <div className="hidden md:flex items-center gap-6">
+                                <nav className="flex gap-6 text-white font-medium">
+                                    <button onClick={() => handleNav('home')} className="hover:text-brand-gold transition-colors">Produk</button>
+                                    <button onClick={() => handleNav('about')} className="hover:text-brand-gold transition-colors">Tentang Kami</button>
+                                    <button onClick={() => handleNav('services')} className="hover:text-brand-gold transition-colors">Layanan</button>
+                                    <button onClick={() => handleNav('orders')} className="hover:text-brand-gold transition-colors">Riwayat</button>
+                                    <button onClick={() => handleNav('profile')} className="hover:text-brand-gold transition-colors">Profil</button>
+                                </nav>
+                                <div className="h-6 w-px bg-white/20"></div>
+                                <button onClick={onCartClick} className="relative text-white hover:text-brand-gold transition-colors">
+                                    <Icon name="ShoppingCart" className="w-6 h-6" />
+                                    {cartCount > 0 && <span className="absolute -top-2 -right-2 bg-brand-gold text-brand-dark text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">{cartCount}</span>}
+                                </button>
+                                {user ? (
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-2">
+                                            <img src={user.avatar} className="w-8 h-8 rounded-full border-2 border-brand-gold" />
+                                            <span className="text-white font-semibold text-sm">{user.username}</span>
+                                        </div>
+                                        <button onClick={onLogoutClick} className="text-white/80 hover:text-white" title="Logout"><Icon name="LogOut" className="w-5 h-5" /></button>
+                                    </div>
+                                ) : (
+                                    <button onClick={onLoginClick} className="flex items-center gap-2 bg-brand-gold text-brand-dark px-4 py-2 rounded-full font-bold hover:bg-white transition-colors shadow-md">
+                                        <Icon name="User" className="w-4 h-4" /> Login
+                                    </button>
+                                )}
+                            </div>
+                             <div className="flex md:hidden items-center gap-4">
+                                <button onClick={onCartClick} className="relative text-white hover:text-brand-gold">
+                                    <Icon name="ShoppingCart" className="w-6 h-6" />
+                                    {cartCount > 0 && <span className="absolute -top-2 -right-2 bg-brand-gold text-brand-dark text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">{cartCount}</span>}
+                                </button>
+                                <button className="text-white" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+                                    <Icon name={isMenuOpen ? "X" : "Menu"} />
+                                </button>
+                            </div>
+                        </div>
+                        {isMenuOpen && (
+                            <div className="md:hidden mt-4 pb-4 border-t border-white/10 pt-4 animate-fade-in">
+                                <nav className="flex flex-col gap-4 text-white">
+                                    <button onClick={() => handleNav('home')}>Produk</button>
+                                    <button onClick={() => handleNav('about')}>Tentang Kami</button>
+                                    <button onClick={() => handleNav('services')}>Layanan</button>
+                                    {user ? (
+                                        <div className="flex justify-between items-center border-t border-white/10 pt-4">
+                                            <div className="flex items-center gap-2"><img src={user.avatar} className="w-8 h-8 rounded-full" /><span>{user.username}</span></div>
+                                            <button onClick={onLogoutClick} className="text-red-300">Logout</button>
+                                        </div>
+                                    ) : (
+                                        <button onClick={() => { onLoginClick(); setIsMenuOpen(false); }} className="bg-brand-gold text-brand-dark py-2 rounded font-bold text-center">Login</button>
+                                    )}
+                                </nav>
+                            </div>
+                        )}
+                    </div>
+                </header>
+            );
+        };
+
+        const Hero = () => {
+            const [currentSlide, setCurrentSlide] = useState(0);
+            const slides = [
+                { id: 1, image: ASSETS.HERO[0], title: "Level Up Your Game", subtitle: "Diskon 50% untuk Controller Premium", cta: "Beli Sekarang", color: "from-red-950/90 to-black/90" },
+                { id: 2, image: ASSETS.HERO[1], title: "Mechanical Precision", subtitle: "Keyboard Gaming Terbaik 2025", cta: "Lihat Koleksi", color: "from-blue-950/90 to-black/90" },
+                { id: 3, image: ASSETS.HERO[2], title: "Crystal Clear Vision", subtitle: "Monitor 240Hz Professional", cta: "Cek Detail", color: "from-green-950/90 to-black/90" },
+                { id: 4, image: ASSETS.HERO[3], title: "Ultimate Comfort", subtitle: "Setup Ergonomis Terbaik", cta: "Jelajahi", color: "from-purple-950/90 to-black/90" }
+            ];
+
+            useEffect(() => {
+                const timer = setInterval(() => setCurrentSlide(prev => (prev + 1) % slides.length), 5000);
+                return () => clearInterval(timer);
+            }, []);
+
+            return (
+                <div className="relative h-[500px] md:h-[650px] overflow-hidden w-full bg-black group">
+                    {slides.map((slide, index) => (
+                        <div key={slide.id} className={`absolute inset-0 transition-opacity duration-1000 ${index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}>
+                            <img src={slide.image} className={`w-full h-full object-cover transition-transform duration-[6000ms] ${index === currentSlide ? 'scale-110' : 'scale-100'}`} />
+                            <div className={`absolute inset-0 bg-gradient-to-r ${slide.color} flex items-center`}>
+                                <div className="container mx-auto px-6 md:px-12">
+                                    <div className="max-w-2xl space-y-6">
+                                        <span className="inline-block px-4 py-1.5 bg-brand-gold text-brand-dark font-extrabold text-sm tracking-widest uppercase rounded-sm mb-2 shadow-lg">Hot Promo</span>
+                                        <h2 className="text-5xl md:text-7xl font-black text-white leading-tight">{slide.title}</h2>
+                                        <p className="text-xl text-gray-200 font-light border-l-4 border-gray-500 pl-4">{slide.subtitle}</p>
+                                        <button className="px-8 py-4 bg-brand-red text-white font-bold text-lg rounded-lg shadow-2xl flex items-center gap-2 hover:bg-red-700 transition-colors">
+                                            {slide.cta} <Icon name="ArrowRight" className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                    <div className="absolute bottom-10 left-6 md:left-12 z-20 flex gap-4">
+                        {slides.map((_, index) => (
+                            <button key={index} onClick={() => setCurrentSlide(index)} className={`h-1 rounded-full transition-all duration-300 ${index === currentSlide ? 'bg-brand-gold w-12' : 'bg-gray-600 w-8'}`}></button>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const ProductGrid = ({ products, activeCategory, onCategoryChange, onBuy, onAddToCart }) => {
+            const categories = [
+                { id: 'all', label: 'Semua', icon: 'Filter' },
+                { id: 'promo', label: 'Promo', icon: 'Tag' },
+                { id: 'controller', label: 'Controller', icon: 'Gamepad2' },
+                { id: 'keyboard', label: 'Keyboard', icon: 'Keyboard' },
+                { id: 'mouse', label: 'Mouse', icon: 'Mouse' },
+                { id: 'monitor', label: 'Monitor', icon: 'Monitor' },
+                { id: 'headset', label: 'Headset', icon: 'Headphones' },
+            ];
+
+            const formatRupiah = (price) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(price);
+
+            return (
+                <section className="py-16 bg-zinc-950" id="products">
+                    <div className="container mx-auto px-4">
+                        <div className="text-center mb-12">
+                            <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">Katalog <span className="text-brand-red">Lengkap</span></h2>
+                            <div className="flex flex-wrap justify-center gap-3 mt-8">
+                                {categories.map(cat => (
+                                    <button key={cat.id} onClick={() => onCategoryChange(cat.id)} className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold transition-all ${activeCategory === cat.id ? 'bg-brand-red text-white scale-105' : 'bg-zinc-800 text-gray-300 hover:bg-zinc-700'}`}>
+                                        <Icon name={cat.icon} size={18} /> {cat.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                            {products.length > 0 ? products.map(product => (
+                                <div key={product.id} className="bg-zinc-900 rounded-xl overflow-hidden group hover:-translate-y-2 transition-transform duration-300 border border-zinc-800 hover:border-brand-red/50 shadow-lg flex flex-col">
+                                    <div className="relative h-60 overflow-hidden bg-white/5">
+                                        <img src={product.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                        <div className="absolute top-3 left-3 flex flex-col gap-2">
+                                            {product.isPromo && <span className="bg-brand-red text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse">PROMO</span>}
+                                            {product.isBestSeller && !product.isPromo && <span className="bg-brand-gold text-brand-dark text-xs font-bold px-3 py-1 rounded-full">TERLARIS</span>}
+                                        </div>
+                                    </div>
+                                    <div className="p-5 flex-1 flex flex-col">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <span className="text-xs uppercase tracking-wider text-gray-500 font-bold">{product.category}</span>
+                                            <div className="flex items-center gap-1 text-sm"><Icon name="Star" size={14} className="text-brand-gold fill-brand-gold" /> {product.rating.toFixed(1)}</div>
+                                        </div>
+                                        <h3 className="text-white font-bold text-lg mb-1 line-clamp-1">{product.name}</h3>
+                                        <p className="text-gray-400 text-xs mb-3 line-clamp-2 h-8">{product.description}</p>
+                                        <div className="mt-auto pt-3 border-t border-zinc-800">
+                                            <div className="mb-3">
+                                                {product.isPromo && <div className="flex items-center gap-2 mb-1"><span className="text-gray-500 line-through text-xs">{formatRupiah(product.originalPrice)}</span></div>}
+                                                <div className="flex justify-between items-center">
+                                                    <p className="text-brand-red font-bold text-xl">{formatRupiah(product.price)}</p>
+                                                    <p className="text-gray-500 text-xs">{product.sold} Terjual</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => onAddToCart(product)} className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2"><Icon name="ShoppingCart" size={16} /></button>
+                                                <button onClick={() => onBuy(product)} className="flex-1 bg-brand-red hover:bg-red-700 text-white py-2 rounded-lg text-sm font-semibold">Beli</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )) : <div className="col-span-full text-center py-20 text-gray-500">Tidak ada produk ditemukan.</div>}
+                        </div>
+                    </div>
+                </section>
+            );
+        };
+
+        const About = () => {
+             const team = [
+                { id: 1, name: "Muhammad Widyan Ferdiansyah", role: "Pendiri & CEO", image: ASSETS.TEAM.CEO, bio: "Expert Fulstack Developer." },
+                { id: 2, name: "Nabila Nur Aliyah", role: "Head of Product", image: ASSETS.TEAM.PRODUCT_HEAD, bio: "Tech reviewer veteran." },
+                { id: 3, name: "Gatot setyo purnomo", role: "Tech Lead", image: ASSETS.TEAM.CS_LEAD, bio: "Master PC builder." },
+                { id: 4, name: "Jessica geraldine", role: "Marketing", image: ASSETS.TEAM.MARKETING, bio: "E-sports strategist." }
+            ];
+            const chartData = [
+                {name:'Jan',sales:4000,transactions:120},
+                {name:'Feb',sales:3000,transactions:98},
+                {name:'Mar',sales:5000,transactions:150},
+                {name:'Apr',sales:4500,transactions:130},
+                {name:'Mei',sales:6000,transactions:175},
+                {name:'Jun',sales:5500,transactions:165},
+                {name:'Jul',sales:7000,transactions:210}
+            ];
+
+            return (
+                <div className="bg-brand-dark min-h-screen text-white pt-10 pb-20">
+                     <div className="container mx-auto px-4 mb-20 text-center relative">
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-brand-red/20 blur-[100px] rounded-full -z-10"></div>
+                        <h1 className="text-5xl font-extrabold mb-6">Legacy of <span className="text-brand-red">Gamers</span></h1>
+                        <p className="text-xl text-gray-400 max-w-3xl mx-auto">Dari keterbatasan performa hingga menjadi destinasi gaming gear #1 di dunia </p>
+                        <p className="text-xl text-gray-400 max-w-3xl mx-auto">sebuah keingin dan harapan serta konsistensi menjadi acuan dalam berdirinya sebuah platform kami demi memenuhi kebutuhan para gamer .</p>
+                    </div>
+                    <div className="container mx-auto px-4">
+                        <div className="grid lg:grid-cols-2 gap-16 items-center mb-32">
+                             <div className="glass-card p-8 rounded-3xl">
+                                <h2 className="text-3xl font-bold mb-6 flex items-center gap-3"><Icon name="Target" className="text-brand-red" /> Misi Kami</h2>
+                                <p className="text-gray-300 mb-6">Frexxdzy Store lahir dari keterbatasan dan kurangnya dukungan akan perangkat maka dari itu Kami hadir dengan misi meningkatkan kualitas hidup konsumen melalui finansial digital yang terjangkau,mudah dan terpercaya.</p>
+                                <div className="grid grid-cols-3 gap-4 border-t border-white/10 pt-6">
+                                    <div className="text-center"><Icon name="Award" className="mx-auto text-brand-gold mb-2"/> <div className="font-bold">#1</div><div className="text-xs text-gray-400">Trusted</div></div>
+                                    <div className="text-center"><Icon name="Globe" className="mx-auto text-brand-gold mb-2"/> <div className="font-bold">34</div><div className="text-xs text-gray-400">Provinsi</div></div>
+                                    <div className="text-center"><Icon name="Clock" className="mx-auto text-brand-gold mb-2"/> <div className="font-bold">24/7</div><div className="text-xs text-gray-400">Support</div></div>
+                                </div>
+                             </div>
+                             <div className="glass-card p-6 rounded-3xl h-[300px]">
+                                <h3 className="font-bold text-xl mb-4">Pertumbuhan Penjualan</h3>
+                                {RechartsAvailable ? (
+                                  <ResponsiveContainer width="100%" height="100%"><AreaChart data={chartData}><defs><linearGradient id="c" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#A31D1D" stopOpacity={0.8}/><stop offset="95%" stopColor="#A31D1D" stopOpacity={0}/></linearGradient></defs><CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false}/><XAxis dataKey="name" stroke="#666"/><YAxis stroke="#666"/><Tooltip contentStyle={{backgroundColor:'#18181b',borderColor:'#333'}} formatter={(value)=>`Rp ${value.toLocaleString('id-ID')}`}/><Area type="monotone" dataKey="sales" stroke="#A31D1D" fillOpacity={1} fill="url(#c)" /></AreaChart></ResponsiveContainer>
+                                ) : (
+                                  <svg width="100%" height="100%" viewBox="0 0 400 250" style={{background:'linear-gradient(180deg, rgba(163,29,29,0.1) 0%, rgba(163,29,29,0) 100%)',borderRadius:'12px'}}>
+                                    <defs>
+                                      <linearGradient id="svgGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#A31D1D" stopOpacity="0.8"/>
+                                        <stop offset="95%" stopColor="#A31D1D" stopOpacity="0"/>
+                                      </linearGradient>
+                                    </defs>
+                                    <polyline points="20,180 80,140 140,100 200,120 260,60 320,80 380,40" fill="none" stroke="#A31D1D" strokeWidth="2"/>
+                                    <polygon points="20,180 80,140 140,100 200,120 260,60 320,80 380,40 380,250 20,250" fill="url(#svgGradient)" opacity="0.6"/>
+                                    <text x="20" y="240" fontSize="12" fill="#999">Jan</text>
+                                    <text x="80" y="240" fontSize="12" fill="#999">Feb</text>
+                                    <text x="140" y="240" fontSize="12" fill="#999">Mar</text>
+                                    <text x="200" y="240" fontSize="12" fill="#999">Apr</text>
+                                    <text x="260" y="240" fontSize="12" fill="#999">Mei</text>
+                                    <text x="320" y="240" fontSize="12" fill="#999">Jun</text>
+                                    <text x="360" y="240" fontSize="12" fill="#999">Jul</text>
+                                  </svg>
+                                )}
+                             </div>
+                        </div>
+                        <h3 className="text-4xl font-bold text-center mb-12">The <span className="text-brand-red">Elite Squad</span></h3>
+                        <div className="grid md:grid-cols-4 gap-8">
+                            {team.map(m => (
+                                <div key={m.id} className="bg-zinc-900 rounded-2xl overflow-hidden shadow-lg border border-zinc-800 hover:border-brand-red transition-all group">
+                                    <div className="h-64 overflow-hidden relative"><img src={m.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"/></div>
+                                    <div className="p-6 text-center">
+                                        <h4 className="text-lg font-bold text-white">{m.name}</h4>
+                                        <p className="text-brand-gold text-xs font-bold uppercase mb-2">{m.role}</p>
+                                        <p className="text-gray-500 text-xs">{m.bio}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )
+        }
+
+        const BrandAmbassadors = ({ onProductClick, products }) => {
+            const people = [
+                {id:1, name:"PRX Forsaken'", game:"Valorant", image:ASSETS.AMBASSADORS.PERSON_1, cat:'mouse'},
+                {id:2, name:"Bigetron Angie", game:"PUBG Mobile", image:ASSETS.AMBASSADORS.PERSON_2, cat:'headset'},
+                {id:3, name:"Windah Basudara", game:"Youtuber Gaming", image:ASSETS.AMBASSADORS.PERSON_3, cat:'controller'},
+                {id:4, name:"Onic Kayes", game:"Mobile Legends E-Sport Player", image:ASSETS.AMBASSADORS.PERSON_4, cat:'monitor'},
+            ];
+            return (
+                <section className="py-20 bg-zinc-900 border-t border-zinc-800">
+                    <div className="container mx-auto px-4">
+                         <div className="text-center mb-16"><h2 className="text-4xl font-extrabold text-white">Brand <span className="text-brand-gold">Ambassadors</span></h2></div>
+                         <div className="grid md:grid-cols-4 gap-8">
+                            {people.map(p => {
+                                const prod = products.find(x => x.category === p.cat) || products[0];
+                                return (
+                                    <div key={p.id} className="group">
+                                        <div className="relative h-[400px] rounded-2xl overflow-hidden mb-4"><img src={p.image} className="w-full h-full object-cover filter grayscale group-hover:grayscale-0 transition-all duration-500"/><div className="absolute bottom-0 left-0 p-6"><h3 className="text-2xl font-bold text-white">{p.name}</h3><p className="text-brand-red font-bold text-sm">{p.game}</p></div></div>
+                                        {prod && <div onClick={()=>onProductClick(prod)} className="bg-zinc-800 p-3 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-zinc-700"><img src={prod.image} className="w-12 h-12 rounded-lg object-cover"/><div className="text-sm font-bold text-white">{prod.name}</div></div>}
+                                    </div>
+                                )
+                            })}
+                         </div>
+                    </div>
+                </section>
+            )
+        }
+
+        const LoginModal = ({ isOpen, onClose, onLogin }) => {
+            const [username, setUsername] = useState('');
+            const [loading, setLoading] = useState(false);
+            if (!isOpen) return null;
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                setLoading(true);
+                setTimeout(() => {
+                    onLogin({ username: username || 'GamerID', avatar: ASSETS.DEFAULTS.USER_AVATAR });
+                    setLoading(false);
+                    onClose();
+                }, 1000);
+            };
+            return (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+                    <div className="bg-zinc-900 border border-zinc-700 w-full max-w-md rounded-2xl shadow-2xl p-8 relative">
+                        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white"><Icon name="X"/></button>
+                        <h2 className="text-3xl font-bold text-brand-red mb-2 text-center">Login</h2>
+                        <form onSubmit={handleSubmit} className="space-y-6 mt-6">
+                            <div><label className="text-gray-300 text-sm font-bold">Username</label><input type="text" className="w-full bg-black/50 border border-zinc-700 rounded-lg p-3 text-white mt-1" value={username} onChange={e=>setUsername(e.target.value)} required /></div>
+                            <div><label className="text-gray-300 text-sm font-bold">Password</label><input type="password" className="w-full bg-black/50 border border-zinc-700 rounded-lg p-3 text-white mt-1" defaultValue="123456" /></div>
+                            <button type="submit" disabled={loading} className="w-full bg-brand-red hover:bg-red-700 text-white font-bold py-3 rounded-lg">{loading ? 'Loading...' : 'LOGIN'}</button>
+                        </form>
+                    </div>
+                </div>
+            )
+        }
+
+        const WelcomeModal = () => {
+             const [isOpen, setIsOpen] = useState(false);
+             useEffect(() => { if (!sessionStorage.getItem('seen')) { setTimeout(() => setIsOpen(true), 1000); sessionStorage.setItem('seen', 'true'); } }, []);
+             if (!isOpen) return null;
+             return (
+                 <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-fade-in">
+                    <div className="bg-zinc-900 border-2 border-brand-red w-full max-w-lg rounded-2xl p-8 text-center relative">
+                        <button onClick={()=>setIsOpen(false)} className="absolute top-4 right-4 text-white"><Icon name="X"/></button>
+                        <div className="inline-flex p-4 bg-brand-red rounded-full mb-4"><Icon name="Gamepad2" className="text-white w-8 h-8"/></div>
+                        <h2 className="text-3xl font-bold text-white mb-2">Temukan Gaming Gear Terbaik Anda!!</h2>
+                        <p className="text-gray-400 mb-6">Gunakan kode <span className="text-brand-red font-bold">FRE73186XNEW</span> untuk diskon member baru.</p>
+                        <button onClick={()=>setIsOpen(false)} className="w-full bg-white text-brand-dark font-bold py-3 rounded-xl hover:bg-gray-200">Mulai Belanja</button>
+                    </div>
+                 </div>
+             )
+        }
+
+        const CartModal = ({ isOpen, onClose, cartItems, onUpdate, onRemove, onCheckout }) => {
+            const [selectedPayment, setSelectedPayment] = useState('Bank Transfer');
+            if(!isOpen) return null;
+            const total = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+            return (
+                 <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+                    <div className="bg-zinc-900 border border-zinc-700 w-full max-w-2xl rounded-2xl flex flex-col max-h-[90vh]">
+                        <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-950 rounded-t-2xl"><h3 className="font-bold text-white flex gap-2"><Icon name="ShoppingBag" className="text-brand-gold"/> Keranjang</h3><button onClick={onClose} className="text-gray-400"><Icon name="X"/></button></div>
+                        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                            {cartItems.length===0 ? <div className="text-center py-10 text-gray-500">Kosong</div> : cartItems.map(item => (
+                                <div key={item.id} className="flex gap-4 bg-zinc-800/50 p-4 rounded-xl items-center">
+                                    <img src={item.image} className="w-16 h-16 rounded-lg object-cover"/>
+                                    <div className="flex-1"><h4 className="font-bold text-white">{item.name}</h4><div className="text-brand-gold">{new Intl.NumberFormat('id-ID').format(item.price)}</div></div>
+                                    <div className="flex items-center gap-3 bg-zinc-900 rounded-lg"><button onClick={()=>onUpdate(item.id, -1)} className="p-2 text-white"><Icon name="Minus" size={14}/></button><span className="text-white font-bold">{item.quantity}</span><button onClick={()=>onUpdate(item.id, 1)} className="p-2 text-white"><Icon name="Plus" size={14}/></button></div>
+                                    <button onClick={()=>onRemove(item.id)} className="text-red-500"><Icon name="Trash2"/></button>
+                                </div>
+                            ))}
+
+                            {/* Payment methods */}
+                            {cartItems.length > 0 && (
+                                <div className="mt-4 bg-zinc-800 p-4 rounded-lg border border-zinc-700">
+                                    <h4 className="text-white font-bold mb-3">Pilih Metode Pembayaran</h4>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {['Bank Transfer','Credit Card','E-Wallet (OVO/Gopay)','COD (Bayar di Tempat)'].map((pm) => (
+                                            <label key={pm} className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer ${selectedPayment===pm? 'bg-zinc-700 border border-brand-gold':'bg-zinc-900 border border-zinc-800'}`}>
+                                                <input type="radio" name="payment" className="accent-brand-gold" checked={selectedPayment===pm} onChange={()=>setSelectedPayment(pm)} />
+                                                <div className="flex-1 text-sm text-white">{pm}</div>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        {cartItems.length > 0 && <div className="p-6 bg-zinc-950 border-t border-zinc-800"><div className="flex justify-between text-white font-bold text-xl mb-4"><span>Total</span><span>Rp {new Intl.NumberFormat('id-ID').format(total)}</span></div><button onClick={()=>onCheckout(selectedPayment)} className="w-full bg-brand-red text-white font-bold py-3 rounded-xl">Checkout</button></div>}
+                    </div>
+                 </div>
+            )
+        }
+
+        // --- Payment Modal (simulated gateway)
+        const PaymentModal = ({ isOpen, onClose, method, onComplete }) => {
+            const [status, setStatus] = useState('idle'); // idle | processing | success | failed
+            const [txId, setTxId] = useState(null);
+
+            useEffect(() => {
+                if (!isOpen) {
+                    setStatus('idle'); setTxId(null);
+                }
+            }, [isOpen]);
+
+            const startPayment = () => {
+                setStatus('processing');
+                // simulate network/payment processing delay
+                setTimeout(() => {
+                    const succeed = Math.random() > 0.08; // 92% success
+                    const id = 'TRX' + Date.now().toString(36).toUpperCase().slice(-8);
+                    setTxId(id);
+                    setStatus(succeed ? 'success' : 'failed');
+                    if (onComplete) onComplete(succeed ? { success: true, txId: id } : { success: false });
+                }, 1400 + Math.random() * 1800);
+            };
+
+            const downloadReceipt = () => {
+                const content = `Frexxdzy Store\nTransaction: ${txId}\nMethod: ${method}\nDate: ${new Date().toLocaleString()}\nThank you for your purchase.`;
+                const blob = new Blob([content], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = `receipt_${txId || 'unknown'}.txt`;
+                document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+            };
+
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/80 p-4">
+                    <div className="w-full max-w-md bg-zinc-900 rounded-2xl border border-zinc-700 p-6 text-white">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-bold text-lg">Pembayaran</h3>
+                            <button onClick={onClose} className="text-gray-400"><Icon name="X"/></button>
+                        </div>
+                        <div className="mb-4">
+                            <div className="text-sm text-gray-300">Metode: <strong className="text-white">{method}</strong></div>
+                        </div>
+                        {status === 'idle' && <div className="space-y-4">
+                            <p className="text-gray-400">Klik tombol "Bayar Sekarang" untuk memproses pembayaran melalui metode yang dipilih.</p>
+                            <div className="flex gap-3"><button onClick={startPayment} className="flex-1 bg-brand-gold text-brand-dark font-bold py-2 rounded">Bayar Sekarang</button><button onClick={onClose} className="flex-1 bg-zinc-800 py-2 rounded">Batal</button></div>
+                        </div>}
+
+                        {status === 'processing' && <div className="text-center py-6">
+                            <div className="animate-spin border-4 border-white/10 border-t-white w-12 h-12 rounded-full mx-auto mb-4"></div>
+                            <div className="text-gray-300">Memproses pembayaran...</div>
+                        </div>}
+
+                        {status === 'success' && <div className="space-y-3">
+                            <div className="text-green-400 font-bold">Pembayaran Berhasil!</div>
+                            <div className="text-sm text-gray-300">ID Transaksi: <span className="font-mono text-xs text-white">{txId}</span></div>
+                            <div className="flex gap-3 mt-4"><button onClick={downloadReceipt} className="flex-1 bg-white text-brand-dark font-bold py-2 rounded">Unduh Bukti</button><button onClick={onClose} className="flex-1 bg-brand-red py-2 rounded text-white font-bold">Selesai</button></div>
+                        </div>}
+
+                        {status === 'failed' && <div className="space-y-3">
+                            <div className="text-red-400 font-bold">Pembayaran Gagal</div>
+                            <div className="text-sm text-gray-300">Terjadi kesalahan saat memproses pembayaran. Silakan coba lagi atau pilih metode lain.</div>
+                            <div className="flex gap-3 mt-4"><button onClick={startPayment} className="flex-1 bg-brand-gold text-brand-dark font-bold py-2 rounded">Coba Lagi</button><button onClick={onClose} className="flex-1 bg-zinc-800 py-2 rounded">Tutup</button></div>
+                        </div>}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Payment Success Notification (animated)
+        const PaymentSuccess = ({ isOpen, txId, method, total, onClose }) => {
+            const pieces = useMemo(() => Array.from({ length: 20 }).map((_, i) => ({
+                id: i,
+                left: Math.random() * 80 + 10 + '%',
+                bg: ['#FFD700','#A31D1D','#10B981','#60A5FA','#F472B6'][Math.floor(Math.random()*5)],
+                delay: (Math.random() * 400) + 'ms',
+                dur: (1200 + Math.random() * 1200) + 'ms',
+                rot: Math.floor(Math.random()*360) + 'deg'
+            })), []);
+
+            useEffect(() => {
+                if (!isOpen) return;
+                const t = setTimeout(() => onClose && onClose(), 6000);
+                return () => clearTimeout(t);
+            }, [isOpen]);
+
+            const downloadReceipt = () => {
+                const content = `Frexxdzy Store\nTransaction: ${txId}\nMethod: ${method}\nTotal: Rp ${new Intl.NumberFormat('id-ID').format(total)}\nDate: ${new Date().toLocaleString()}\nTerima kasih sudah berbelanja.`;
+                const blob = new Blob([content], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = `receipt_${txId || 'unknown'}.txt`;
+                document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+            };
+
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 z-[140] flex items-center justify-center pointer-events-none">
+                    <div className="pointer-events-auto w-full max-w-lg mx-auto p-6">
+                        <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 text-white success-card relative overflow-hidden">
+                            <div className="flex items-center gap-4">
+                                <div className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center shadow-lg">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg>
+                                </div>
+                                <div className="flex-1">
+                                    <h4 className="text-xl font-bold">Pembayaran Berhasil</h4>
+                                    <div className="text-sm text-gray-300">Transaksi <span className="font-mono text-xs text-white">{txId}</span> berhasil diproses via <strong>{method}</strong>.</div>
+                                </div>
+                                <div className="text-lg font-bold text-white">Rp {new Intl.NumberFormat('id-ID').format(total)}</div>
+                            </div>
+
+                            <div className="mt-4 flex gap-3">
+                                <button onClick={downloadReceipt} className="bg-white text-brand-dark px-4 py-2 rounded font-bold">Unduh Bukti</button>
+                                <button onClick={() => { onClose && onClose(); }} className="bg-brand-red text-white px-4 py-2 rounded font-bold">Tutup</button>
+                            </div>
+
+                            {/* Confetti pieces */}
+                            {pieces.map(p => (
+                                <span key={p.id} className="confetti-piece" style={{ left: p.left, background: p.bg, animation: `confetti-fall ${p.dur} linear ${p.delay}`, transform: `rotate(${p.rot})` }} />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Order Confirmation Page
+        const OrderConfirmation = ({ order, onBack }) => {
+            if (!order) return null;
+            const { txId, method, total, items, date } = order;
+            const downloadReceipt = () => {
+                const lines = [
+                    'Frexxdzy Store - Receipt',
+                    `Transaction: ${txId}`,
+                    `Date: ${date}`,
+                    `Method: ${method}`,
+                    `Total: Rp ${new Intl.NumberFormat('id-ID').format(total)}`,
+                    '\nItems:'
+                ];
+                items.forEach(it => lines.push(`- ${it.name} x${it.quantity} @ Rp ${new Intl.NumberFormat('id-ID').format(it.price)}`));
+                const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = `receipt_${txId || 'unknown'}.txt`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+            };
+
+            return (
+                <div className="min-h-screen flex items-start justify-center py-20">
+                    <div className="w-full max-w-3xl bg-zinc-900 rounded-2xl border border-zinc-800 p-8">
+                        <div className="flex justify-between items-center mb-6">
+                            <div>
+                                <h2 className="text-3xl font-bold text-white">Terima kasih atas pesanan Anda</h2>
+                                <div className="text-sm text-gray-400">Nomor Transaksi: <span className="font-mono text-xs text-white">{txId}</span></div>
+                            </div>
+                            <div className="text-right">
+                                <div className="text-sm text-gray-400">Metode</div>
+                                <div className="font-bold text-white">{method}</div>
+                                <div className="text-sm text-gray-400 mt-2">{date}</div>
+                            </div>
+                        </div>
+
+                        <div className="border-t border-zinc-800 pt-6">
+                            <h4 className="text-white font-bold mb-4">Ringkasan Pesanan</h4>
+                            <div className="space-y-3">
+                                {items.map(it => (
+                                    <div key={it.id} className="flex justify-between items-center bg-zinc-800 p-3 rounded">
+                                        <div className="flex items-center gap-3">
+                                            <img src={it.image} className="w-12 h-12 object-cover rounded" />
+                                            <div>
+                                                <div className="text-white font-bold">{it.name}</div>
+                                                <div className="text-sm text-gray-400">{it.quantity} x Rp {new Intl.NumberFormat('id-ID').format(it.price)}</div>
+                                            </div>
+                                        </div>
+                                        <div className="text-white font-bold">Rp {new Intl.NumberFormat('id-ID').format(it.price * it.quantity)}</div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="flex justify-between items-center mt-6 border-t border-zinc-800 pt-4">
+                                <div className="text-sm text-gray-400">Total</div>
+                                <div className="text-2xl font-bold">Rp {new Intl.NumberFormat('id-ID').format(total)}</div>
+                            </div>
+
+                            <div className="mt-6 flex gap-3">
+                                <button onClick={downloadReceipt} className="bg-brand-gold text-brand-dark px-4 py-2 rounded font-bold">Unduh Bukti</button>
+                                <button onClick={onBack} className="bg-zinc-800 text-white px-4 py-2 rounded">Kembali ke Beranda</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Order History Page (reads from localStorage)
+        const OrderHistory = ({ onViewOrder }) => {
+            const [orders, setOrders] = useState([]);
+
+            const load = () => {
+                try {
+                    const raw = localStorage.getItem('frexxdzy_orders');
+                    setOrders(raw ? JSON.parse(raw) : []);
+                } catch (e) { setOrders([]); }
+            };
+
+            useEffect(() => { load(); }, []);
+
+            const clearAll = () => {
+                if (!confirm('Hapus semua riwayat pesanan?')) return;
+                localStorage.removeItem('frexxdzy_orders');
+                setOrders([]);
+            };
+
+            if (!orders || orders.length === 0) return (
+                <div className="container mx-auto px-4 py-20 text-center text-gray-400">Belum ada riwayat pesanan.</div>
+            );
+
+            return (
+                <div className="container mx-auto px-4 py-12">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-bold text-white">Riwayat Pesanan</h2>
+                        <div className="flex gap-3">
+                            <button onClick={load} className="bg-zinc-800 text-white px-3 py-2 rounded">Muat Ulang</button>
+                            <button onClick={clearAll} className="bg-red-700 text-white px-3 py-2 rounded">Hapus Semua</button>
+                        </div>
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4">
+                        {orders.map((o, idx) => (
+                            <div key={idx} className="bg-zinc-900 p-4 rounded-lg border border-zinc-800">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <div className="text-sm text-gray-400">{o.date}</div>
+                                        <div className="font-bold text-white">{o.txId}</div>
+                                        <div className="text-sm text-gray-300">{o.method}</div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="font-bold text-white">Rp {new Intl.NumberFormat('id-ID').format(o.total)}</div>
+                                        <div className="text-sm text-gray-400">{o.items.length} item</div>
+                                    </div>
+                                </div>
+                                <div className="mt-3 flex gap-3">
+                                    <button onClick={() => { onViewOrder(o); }} className="bg-brand-gold text-brand-dark px-3 py-2 rounded font-bold">Lihat</button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- CheckoutForm (Direct Buy Modal) ---
+        const CheckoutForm = ({ product, onClose, onSubmit, user }) => {
+            const [formData, setFormData] = useState({
+                name: user?.username || '',
+                phone: '',
+                address: '',
+                city: '',
+                postalCode: '',
+                shipping: 'standard'
+            });
+            const [errors, setErrors] = useState({});
+
+            const shippingOptions = [
+                { id: 'standard', name: 'Standard (3-5 hari)', price: 10000 },
+                { id: 'express', name: 'Express (1-2 hari)', price: 25000 },
+                { id: 'nextday', name: 'Besok Tiba', price: 50000 }
+            ];
+
+            const handleChange = (e) => {
+                const { name, value } = e.target;
+                setFormData(prev => ({ ...prev, [name]: value }));
+                if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
+            };
+
+            const validate = () => {
+                const newErrors = {};
+                if (!formData.name) newErrors.name = 'Nama wajib diisi';
+                if (!formData.phone || !/^\d{9,}$/.test(formData.phone.replace(/\D/g, ''))) newErrors.phone = 'No telepon minimal 9 digit';
+                if (!formData.address) newErrors.address = 'Alamat wajib diisi';
+                if (!formData.city) newErrors.city = 'Kota wajib diisi';
+                if (!formData.postalCode || !/^\d{5,}$/.test(formData.postalCode)) newErrors.postalCode = 'Kode pos minimal 5 digit';
+                setErrors(newErrors);
+                return Object.keys(newErrors).length === 0;
+            };
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (validate()) {
+                    const selectedShipping = shippingOptions.find(s => s.id === formData.shipping);
+                    onSubmit({
+                        ...formData,
+                        product,
+                        shippingPrice: selectedShipping.price,
+                        shippingName: selectedShipping.name
+                    });
+                }
+            };
+
+            const selectedShipping = shippingOptions.find(s => s.id === formData.shipping);
+            const total = product.price + (selectedShipping?.price || 0);
+
+            return (
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+                    <div className="bg-zinc-900 rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto border border-zinc-800">
+                        <div className="p-6 border-b border-zinc-800 flex justify-between items-center sticky top-0 bg-zinc-900">
+                            <h2 className="text-xl font-bold text-white">Form Pembelian</h2>
+                            <button onClick={onClose} className="text-gray-400 hover:text-white"><Icon name="X" size={24} /></button>
+                        </div>
+
+                        <div className="p-6 space-y-6">
+                            {/* Order Summary */}
+                            <div className="bg-zinc-800 p-4 rounded-lg">
+                                <h3 className="font-bold text-white mb-3">Ringkasan Pesanan</h3>
+                                <div className="flex gap-4 mb-4">
+                                    <img src={product.image} alt={product.name} className="w-16 h-16 object-cover rounded" />
+                                    <div className="flex-1">
+                                        <p className="text-white font-semibold">{product.name}</p>
+                                        <p className="text-gray-400 text-sm">{product.category}</p>
+                                        <p className="text-brand-gold font-bold">Rp {product.price.toLocaleString('id-ID')}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Form */}
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                {/* Name */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Nama Lengkap</label>
+                                    <input
+                                        type="text"
+                                        name="name"
+                                        value={formData.name}
+                                        onChange={handleChange}
+                                        className={`w-full px-3 py-2 bg-zinc-800 text-white rounded border ${errors.name ? 'border-red-500' : 'border-zinc-700'} focus:outline-none focus:border-brand-gold`}
+                                        placeholder="Nama Anda"
+                                    />
+                                    {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+                                </div>
+
+                                {/* Phone */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">No Telepon</label>
+                                    <input
+                                        type="tel"
+                                        name="phone"
+                                        value={formData.phone}
+                                        onChange={handleChange}
+                                        className={`w-full px-3 py-2 bg-zinc-800 text-white rounded border ${errors.phone ? 'border-red-500' : 'border-zinc-700'} focus:outline-none focus:border-brand-gold`}
+                                        placeholder="0812345678"
+                                    />
+                                    {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
+                                </div>
+
+                                {/* Address */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Alamat Jalan</label>
+                                    <textarea
+                                        name="address"
+                                        value={formData.address}
+                                        onChange={handleChange}
+                                        rows="2"
+                                        className={`w-full px-3 py-2 bg-zinc-800 text-white rounded border ${errors.address ? 'border-red-500' : 'border-zinc-700'} focus:outline-none focus:border-brand-gold`}
+                                        placeholder="Jl. Contoh No. 123, Kelurahan, Kecamatan"
+                                    />
+                                    {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
+                                </div>
+
+                                {/* City */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Kota/Kabupaten</label>
+                                    <input
+                                        type="text"
+                                        name="city"
+                                        value={formData.city}
+                                        onChange={handleChange}
+                                        className={`w-full px-3 py-2 bg-zinc-800 text-white rounded border ${errors.city ? 'border-red-500' : 'border-zinc-700'} focus:outline-none focus:border-brand-gold`}
+                                        placeholder="Jakarta"
+                                    />
+                                    {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
+                                </div>
+
+                                {/* Postal Code */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Kode Pos</label>
+                                    <input
+                                        type="text"
+                                        name="postalCode"
+                                        value={formData.postalCode}
+                                        onChange={handleChange}
+                                        className={`w-full px-3 py-2 bg-zinc-800 text-white rounded border ${errors.postalCode ? 'border-red-500' : 'border-zinc-700'} focus:outline-none focus:border-brand-gold`}
+                                        placeholder="12345"
+                                    />
+                                    {errors.postalCode && <p className="text-red-500 text-xs mt-1">{errors.postalCode}</p>}
+                                </div>
+
+                                {/* Shipping Method */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">Metode Pengiriman</label>
+                                    <div className="space-y-2">
+                                        {shippingOptions.map(option => (
+                                            <label key={option.id} className="flex items-center p-2 border border-zinc-700 rounded cursor-pointer hover:bg-zinc-800 transition">
+                                                <input
+                                                    type="radio"
+                                                    name="shipping"
+                                                    value={option.id}
+                                                    checked={formData.shipping === option.id}
+                                                    onChange={handleChange}
+                                                    className="mr-3"
+                                                />
+                                                <div className="flex-1">
+                                                    <p className="text-white font-medium">{option.name}</p>
+                                                    <p className="text-brand-gold text-sm">+ Rp {option.price.toLocaleString('id-ID')}</p>
+                                                </div>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Total */}
+                                <div className="bg-gradient-to-r from-brand-red/20 to-brand-gold/20 p-4 rounded-lg border border-brand-red/30">
+                                    <p className="text-gray-300 text-sm mb-1">Total Pembayaran</p>
+                                    <p className="text-2xl font-bold text-brand-gold">Rp {total.toLocaleString('id-ID')}</p>
+                                </div>
+
+                                {/* Submit */}
+                                <button
+                                    type="submit"
+                                    className="w-full bg-gradient-to-r from-brand-red to-red-700 hover:from-red-700 hover:to-red-800 text-white font-bold py-3 rounded-lg transition transform hover:scale-105"
+                                >
+                                    Lanjut ke Pembayaran
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-2 rounded-lg transition"
+                                >
+                                    Batal
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Profile Page (basic user info + order history)
+        const Profile = ({ user, setUser, onLogout }) => {
+            const [orders, setOrders] = useState([]);
+            const [editing, setEditing] = useState(false);
+            const [editName, setEditName] = useState(user ? user.username : '');
+            const [editAvatar, setEditAvatar] = useState(user ? user.avatar : '');
+
+            useEffect(() => {
+                try {
+                    const raw = localStorage.getItem('frexxdzy_orders');
+                    setOrders(raw ? JSON.parse(raw) : []);
+                } catch (e) { setOrders([]); }
+            }, []);
+
+            useEffect(() => {
+                // update local edit fields when user changes
+                setEditName(user ? user.username : '');
+                setEditAvatar(user ? user.avatar : '');
+            }, [user]);
+
+            const saveProfile = () => {
+                const updated = { ...(user || {}), username: editName || 'GamerID', avatar: editAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200' };
+                try { setUser(updated); sessionStorage.setItem('frexxdzy_user', JSON.stringify(updated)); } catch(e){}
+                setEditing(false);
+            };
+
+            return (
+                <div className="container mx-auto px-4 py-12">
+                    <div className="grid md:grid-cols-3 gap-6">
+                        <div className="bg-zinc-900 p-6 rounded-lg border border-zinc-800">
+                            <h3 className="text-xl font-bold text-white mb-3">Profil</h3>
+                            {user ? (
+                                <div className="space-y-3">
+                                    {!editing ? (
+                                        <>
+                                            <img src={user.avatar} className="w-20 h-20 rounded-full" />
+                                            <div className="font-bold text-white">{user.username}</div>
+                                            <div className="text-sm text-gray-400">Member Frexxdzy</div>
+                                            <div className="mt-4 flex gap-2">
+                                                <button onClick={()=>setEditing(true)} className="bg-brand-gold text-brand-dark px-3 py-2 rounded font-bold">Edit Profil</button>
+                                                <button onClick={() => { if (onLogout) onLogout(); }} className="bg-zinc-800 text-white px-3 py-2 rounded">Logout</button>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            <div>
+                                                <label className="text-sm text-gray-300">Nama</label>
+                                                <input value={editName} onChange={e=>setEditName(e.target.value)} className="w-full mt-1 p-2 rounded bg-black/40 border border-zinc-700 text-white" />
+                                            </div>
+                                            <div>
+                                                <label className="text-sm text-gray-300">URL Avatar</label>
+                                                <input value={editAvatar} onChange={e=>setEditAvatar(e.target.value)} className="w-full mt-1 p-2 rounded bg-black/40 border border-zinc-700 text-white" />
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button onClick={saveProfile} className="bg-brand-gold text-brand-dark px-3 py-2 rounded font-bold">Simpan</button>
+                                                <button onClick={()=>setEditing(false)} className="bg-zinc-800 text-white px-3 py-2 rounded">Batal</button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="text-sm text-gray-400">Belum login. Klik Login untuk membuat akun singkat.</div>
+                            )}
+                        </div>
+
+                        <div className="md:col-span-2">
+                            <h3 className="text-xl font-bold text-white mb-4">Riwayat Pesanan Anda</h3>
+                            {orders.length === 0 ? (
+                                <div className="text-gray-400">Belum ada riwayat pesanan.</div>
+                            ) : (
+                                <div className="grid gap-3">
+                                    {orders.map((o, idx) => (
+                                        <div key={idx} className="bg-zinc-900 p-4 rounded border border-zinc-800 flex justify-between items-center">
+                                            <div>
+                                                <div className="font-bold text-white">{o.txId}</div>
+                                                <div className="text-sm text-gray-400">{o.date} — {o.method}</div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="font-bold">Rp {new Intl.NumberFormat('id-ID').format(o.total)}</div>
+                                                <div className="text-sm text-gray-400">{o.items.length} item</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- MAIN APP ---
+        const App = () => {
+            // Generate Data
+            // CUSTOM PRODUCT NAMES - Ubah di sini sesuai keinginan Anda
+            const PRODUCT_NAMES = {
+                controller: ['Rexus Pro Gaming Gamepad GX2', 'Fantech EOS PRO II WGP15 V2 Gamepad Gaming Wireless Tri-Mode Hall Effect WGP15V2 EOS PRO II', 'PS4 DUALSHOCK 4 WIRELESS CONTROLLER BLACK (NEW MODEL)', 'DualSense Edge Wireless Pro Controller PS5 Stick PS5 - White,', 'Logitech F310 Wired Gamepad'],
+                keyboard: ['Keyboard Gaming Fantech SUPER MAXFIT AIR83 MK915 Grey - Red Switch', 'LOGITECH G PRO TKL RGB CLICKY', 'Rexus Gaming Keyboard Legionarz RX-MX1 Mechanical Keyboard', 'HyperX Alloy Origins Core PBT HX Aqua - Mechanical Gaming Keyboard', 'MSI KYB Vigor GK50 Low Profile TKL UK keyboard Lightning'],
+                mouse: ['Redragon M612 Predator RGB Gaming Mouse 8000 DPI Wired Optical with 11 Programmable Buttons', 'Logitech G102 Lightsync RGB Mouse Gaming', 'Zelotes C17 WIred Macro Gaming Mouse 6400DPI 12 Programmable Buttons Ergonomic Mouse', 'MVCOM XFire Pro – Wired Gaming Mouse with 7 Buttons', 'Abko A660 3325 Professional Gaming Mouse White'],
+                monitor: ['Xiaomi Curved Gaming Monitor G34WQi', 'ASUS ROG Strix XG17AHP 43,9 cm (17.3") 1920 x 1080 piksel Full HD LED', 'LG 45GR95QE-B 45 Inch Gaming Monitor Ultra Gear Oled Curved WQHD with NVIDIA G-SYNC', 'Lenovo Legion R27i-30 Monitor Gaming 27" 180Hz 0.5ms FreeSync Speaker', 'Monitor LED MSI MP341CQW White 34" Inch Curved UWQHD VA 100Hz 4ms built in Speaker VESA Gaming Monitor'],
+                chair: ['Rexus Gaming Chair Kursi RGC 101 v.2 4D Arm Rest', 'Furnibest Kursi Gaming Gaming Chair', 'Secretlab TITAN Evo Kursi GamingDark Knight', 'TTRacing Swift X Gaming Chair Kursi Gaming' , 'MSI Gaming chair X 7756'],
+                desk: ['Rexus RXD 145 Gala V2 Meja Gaming Desk Support ARGB', 'DRX Gaming Desk 889', 'DESK PRO GAMING RX8', 'Meja Gaming Legend of Gamer', 'Gaming Gich Desk Pr Player V892'],
+                pc: ['PC Pro Gaming AMD Ryzen 7 6000 HS With AMD Radeon 10 TM Graphic', ' Gaming i5 3470 (GTX 1050Ti 4GB', 'Thermaltake - LCGS Vista R66 Gaming Desktop AMD Ryzen 5 5600 ', 'PC Rakitan Full Expert Gaming', 'PC Gaming Intel Core i5 10400F GTX 1660 Super 6GB'],
+                headset: ['PRO Headset Gaming 9000XCV', 'SE GVX Gaming Headset RGB', 'GRX 7000h Gaming Headset', 'Logitech Headset Gaming 77hx', 'Onikuma K5 Headset Gaming RGB'],
+            };
+
+            const generateProducts = () => {
+                const list = [];
+                let id = 1;
+                const types = Object.keys(PRODUCT_NAMES);
+                types.forEach((type) => {
+                    const imgs = ASSETS.PRODUCTS[type.toUpperCase()] || ASSETS.PRODUCTS.CONTROLLER;
+                    const names = PRODUCT_NAMES[type] || [];
+                    for(let i=0; i<5; i++) {
+                        list.push({
+                            id: id++,
+                            name: names[i] || `${type.charAt(0).toUpperCase() + type.slice(1)} ${i+1}`,
+                            category: type,
+                            price: (i+1) * 250000 + (Math.random() * 100000),
+                            image: imgs[i % imgs.length],
+                            rating: 4 + Math.random(),
+                            sold: Math.floor(Math.random() * 100),
+                            isBestSeller: i===0,
+                            isPromo: i===2,
+                            originalPrice: i===2 ? ((i+1) * 250000) * 1.5 : 0,
+                            description: "Gear gaming kualitas tinggi untuk performa maksimal."
+                        })
+                    }
+                });
+                return list;
+            };
+
+            const [products] = useState(generateProducts());
+            const [filtered, setFiltered] = useState(products);
+            const [cat, setCat] = useState('all');
+            const [search, setSearch] = useState('');
+            const [user, setUser] = useState(null);
+            // restore persisted user from sessionStorage if available
+            useEffect(() => {
+                try {
+                    const raw = sessionStorage.getItem('frexxdzy_user');
+                    if (raw) setUser(JSON.parse(raw));
+                } catch (e) { /* ignore */ }
+            }, []);
+            const [view, setView] = useState('home');
+            const [cart, setCart] = useState([]);
+            const [modals, setModals] = useState({ login: false, cart: false, checkout: false });
+            const [checkoutProduct, setCheckoutProduct] = useState(null);
+
+            // Filtering
+            useEffect(() => {
+                let res = products;
+                if (cat !== 'all') res = res.filter(p => cat === 'promo' ? p.isPromo : p.category === cat);
+                if (search) res = res.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
+                setFiltered(res);
+            }, [cat, search, products]);
+
+            const addToCart = (p) => {
+                setCart(prev => {
+                    const exist = prev.find(x => x.id === p.id);
+                    if(exist) return prev.map(x => x.id === p.id ? {...x, quantity: x.quantity + 1} : x);
+                    return [...prev, {...p, quantity: 1}];
+                });
+                setModals({...modals, cart: true});
+            };
+
+            const updateCart = (id, delta) => {
+                setCart(prev => prev.map(item => item.id === id ? {...item, quantity: Math.max(1, item.quantity + delta)} : item));
+            };
+            const removeFromCart = (id) => setCart(prev => prev.filter(x => x.id !== id));
+            const [paymentState, setPaymentState] = useState({ isOpen: false, method: null });
+            const [successState, setSuccessState] = useState({ isOpen: false, txId: null, method: null, total: 0 });
+            const [lastOrder, setLastOrder] = useState(null);
+
+            const checkout = (paymentMethod = 'Bank Transfer') => {
+                // close cart and open simulated payment modal
+                setModals(prev => ({ ...prev, cart: false }));
+                setPaymentState({ isOpen: true, method: paymentMethod });
+            };
+
+            const handlePaymentComplete = (res) => {
+                // compute total from current cart before clearing
+                const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+                if (res && res.success) {
+                    // successful payment: show nice success UI, store last order and clear cart
+                    const items = cart.map(i => ({ ...i }));
+                    const order = { txId: res.txId, method: paymentState.method, total, items, date: new Date().toLocaleString() };
+                    // save to localStorage order history (most recent first)
+                    try {
+                        const key = 'frexxdzy_orders';
+                        const raw = localStorage.getItem(key);
+                        const arr = raw ? JSON.parse(raw) : [];
+                        arr.unshift(order);
+                        // keep last 100 orders max
+                        const trimmed = arr.slice(0, 100);
+                        localStorage.setItem(key, JSON.stringify(trimmed));
+                    } catch (e) { console.warn('Could not save order history', e); }
+
+                    setLastOrder(order);
+                    setView('order');
+                    setSuccessState({ isOpen: true, txId: res.txId, method: paymentState.method, total });
+                    setCart([]);
+                } else {
+                    try { window.__showAppError && window.__showAppError('Pembayaran gagal.'); } catch(e){}
+                }
+                setPaymentState({ isOpen: false, method: null });
+            };
+
+            return (
+                <div className="bg-brand-dark min-h-screen font-sans">
+                    <WelcomeModal />
+                    <Header 
+                        onSearch={setSearch} 
+                        onLoginClick={()=>setModals({...modals, login: true})} 
+                        onLogoutClick={()=>{ setUser(null); try{ sessionStorage.removeItem('frexxdzy_user'); }catch(e){} }} 
+                        user={user} 
+                        onNavigate={setView}
+                        cartCount={cart.reduce((a,b)=>a+b.quantity,0)}
+                        onCartClick={()=>setModals({...modals, cart: true})}
+                    />
+                    
+                    {view === 'home' && (
+                        <>
+                            <Hero />
+                            <ProductGrid 
+                                products={filtered} 
+                                activeCategory={cat} 
+                                onCategoryChange={setCat} 
+                                onAddToCart={addToCart}
+                                onBuy={(p) => { setCheckoutProduct(p); }}
+                            />
+                            <BrandsSection />
+                            <BrandAmbassadors products={products} onProductClick={(p) => { addToCart(p); window.scrollTo(0, 500); }} />
+                            <div className="bg-zinc-950 py-20 text-center">
+                                <h2 className="text-3xl font-bold text-white mb-8">Apa Kata Mereka?</h2>
+                                <div className="flex flex-wrap justify-center gap-6 px-4">
+                                    {ASSETS.REVIEWS.map((img, i) => (
+                                        <div key={i} className="bg-zinc-900 p-6 rounded-xl border border-zinc-800 w-80">
+                                            <div className="flex items-center gap-3 mb-4"><img src={img} className="w-10 h-10 rounded-full"/><div className="text-left"><div className="font-bold text-white">Gamer {i+1}</div><div className="text-brand-gold text-xs">Verified Buyer</div></div></div>
+                                            <p className="text-gray-400 text-sm">"Barang original, pengiriman cepat, admin ramah banget. Auto langganan!"</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {view === 'about' && <About />}
+                    {view === 'orders' && <OrderHistory onViewOrder={(o) => { setLastOrder(o); setView('order'); }} />}
+                    {view === 'order' && <OrderConfirmation order={lastOrder} onBack={() => setView('home')} />}
+                    {view === 'profile' && <Profile user={user} setUser={setUser} onLogout={() => { setUser(null); try{ sessionStorage.removeItem('frexxdzy_user'); }catch(e){} setView('home'); }} />}
+                    
+                    {view === 'services' && (
+                        <div className="pt-20 pb-20 container mx-auto px-4 text-center">
+                            <h2 className="text-4xl font-bold text-white mb-10">Layanan Kami</h2>
+                            <div className="grid md:grid-cols-3 gap-8">
+                                <div className="bg-zinc-900 p-8 rounded-2xl hover:border-brand-red border border-zinc-800"><Icon name="Cpu" className="w-12 h-12 text-brand-gold mx-auto mb-4"/><h3 className="text-xl font-bold text-white mb-2">Rakitan PC</h3><p className="text-gray-400">Custom PC sesuai budget.</p></div>
+                                <div className="bg-zinc-900 p-8 rounded-2xl hover:border-brand-red border border-zinc-800"><Icon name="Wrench" className="w-12 h-12 text-brand-gold mx-auto mb-4"/><h3 className="text-xl font-bold text-white mb-2">Service Gear</h3><p className="text-gray-400">Reparasi mouse & keyboard.</p></div>
+                                <div className="bg-zinc-900 p-8 rounded-2xl hover:border-brand-red border border-zinc-800"><Icon name="ShieldCheck" className="w-12 h-12 text-brand-gold mx-auto mb-4"/><h3 className="text-xl font-bold text-white mb-2">Garansi Resmi</h3><p className="text-gray-400">Bantu klaim garansi 100%.</p></div>
+                            </div>
+                        </div>
+                    )}
+
+                    <footer className="bg-black border-t-4 border-brand-red py-12 text-gray-300">
+                        <div className="container mx-auto px-4 grid md:grid-cols-3 gap-8 items-start">
+                            <div className="md:col-span-1">
+                                <h3 className="text-2xl font-bold text-white mb-3">Frexxdzy Store</h3>
+                                <p className="text-sm mb-4">Premium Gaming Gear — Official Store</p>
+                                <div className="flex flex-col gap-2 text-sm">
+                                    <div><strong>Alamat:</strong> Jl. Cukir-Mojowarno ,Diwek, Jombang, Jawa Timur, Indonesia</div>
+                                    <div><strong>Telepon:</strong> <a href="tel:+628578947145" className="text-brand-gold">+62 857 8947 1457</a></div>
+                                    <div><strong>Email:</strong> <a href="mailto:hello@frexxdzy.id" className="text-brand-gold">hello@frexxdzy.id</a></div>
+                                    <div><strong>Jam Operasional:</strong> Senin - Minggu, 09:00 - 20:00</div>
+                                </div>
+                                <div className="flex gap-3 mt-4 text-white">
+                                    <a aria-label="facebook" href="#"><Icon name="Facebook" /></a>
+                                    <a aria-label="twitter" href="#"><Icon name="Twitter" /></a>
+                                    <a aria-label="instagram" href="#"><Icon name="Instagram" /></a>
+                                    <a aria-label="youtube" href="#"><Icon name="Youtube" /></a>
+                                </div>
+                            </div>
+
+                            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="bg-zinc-900 p-4 rounded-lg border border-zinc-800">
+                                    <h4 className="text-white font-bold mb-2">Lokasi Kami</h4>
+                                    <div className="w-full h-48 overflow-hidden rounded">
+                                        <iframe title="Frexxdzy Store Location" width="100%" height="100%" style={{border:0}} loading="lazy" referrerPolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=-7.6212053,112.2675465&z=17&output=embed"></iframe>
+                                        <div className="mt-2 text-xs text-gray-400">
+                                            <a href="https://www.google.com/maps/place/Toko+Bu+Erin/@-7.621252,112.2676829,21z/data=!4m6!3m5!1s0x2e78690001992de3:0x3150d71023480f3c!8m2!3d-7.6212053!4d112.2675465!16s/g/11yjrrwv1v?entry=tts&g_ep=EgoyMDI1MTIwNy4wIPu8ASoASAFQAw==&skid=af1e6326-a60d-4447-869e-8ef567fca0d0" target="_blank" rel="noopener noreferrer">Buka di Google Maps</a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-zinc-900 p-4 rounded-lg border border-zinc-800">
+                                    <h4 className="text-white font-bold mb-2">Informasi Kontak & Pembayaran</h4>
+                                    <p className="text-sm text-gray-300 mb-3">Hubungi tim support kami untuk pertanyaan pesanan atau klaim garansi.</p>
+                                    <div className="text-sm">
+                                        <div className="mb-2"><strong>Support:</strong> <a href="mailto:support@frexxdzy.id" className="text-brand-gold">support@frexxdzy.id</a></div>
+                                        <div className="mb-2"><strong>Metode Pembayaran:</strong></div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="px-3 py-1 bg-white text-brand-dark rounded font-bold text-xs">Bank Transfer</div>
+                                            <div className="px-3 py-1 bg-white text-brand-dark rounded font-bold text-xs">Credit Card</div>
+                                            <div className="px-3 py-1 bg-white text-brand-dark rounded font-bold text-xs">OVO / GoPay</div>
+                                            <div className="px-3 py-1 bg-white text-brand-dark rounded font-bold text-xs">COD</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-8 text-center text-gray-500">
+                            <p>&copy; 2025 Frexxdzy Store. Premium Gaming Gear.</p>
+                        </div>
+                    </footer>
+
+                    <LoginModal isOpen={modals.login} onClose={()=>setModals({...modals, login: false})} onLogin={(u)=>{setUser(u); try{ sessionStorage.setItem('frexxdzy_user', JSON.stringify(u)); }catch(e){} setModals({...modals, login: false});}} />
+                    <CartModal isOpen={modals.cart} onClose={()=>setModals({...modals, cart: false})} cartItems={cart} onUpdate={updateCart} onRemove={removeFromCart} onCheckout={checkout} />
+                    {checkoutProduct && <CheckoutForm product={checkoutProduct} user={user} onClose={()=>{setCheckoutProduct(null);}} onSubmit={(data)=>{setPaymentState({isOpen: true, method: null}); setCheckoutProduct(null);}} />}
+                    <PaymentModal isOpen={paymentState.isOpen} onClose={()=>setPaymentState({ isOpen: false, method: null })} method={paymentState.method} onComplete={handlePaymentComplete} />
+                    <PaymentSuccess isOpen={successState.isOpen} txId={successState.txId} method={successState.method} total={successState.total} onClose={()=>setSuccessState({ isOpen:false, txId:null, method:null, total:0 })} />
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
